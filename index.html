@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Message Encryptor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero card">
+      <div>
+        <h1>Secure Message Encryptor</h1>
+        <p>
+          Local browser encryption/signing app. Create an address, import other addresses,
+          encrypt messages, and verify signatures.
+        </p>
+      </div>
+
+      <div id="statusBox" class="status-box">
+        Loading status...
+      </div>
+    </section>
+
+    <section class="controls card">
+      <div class="control-grid">
+        <button id="createIdentityBtn">Create/register my key</button>
+        <button id="showAddressBtn">Show my address</button>
+        <button id="importAddressBtn">Import address from paste</button>
+        <button id="deleteAddressBtn">Delete selected address</button>
+
+        <label for="recipientSelect">Encrypt to:</label>
+        <select id="recipientSelect"></select>
+
+        <button id="refreshBtn">Refresh</button>
+        <button id="clearOutputBtn">Clear output</button>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <section class="card panel message-panel">
+        <div class="panel-header">
+          <h2>Message to encrypt</h2>
+        </div>
+
+        <textarea id="messageInput" placeholder="Write normal text here..."></textarea>
+
+        <div class="button-row">
+          <button id="encryptBtn" class="primary">Encrypt only</button>
+          <button id="decryptTopBtn">Decrypt pasted message</button>
+        </div>
+      </section>
+
+      <section class="card panel output-panel">
+        <div class="panel-header">
+          <h2>Output / my address / imported address</h2>
+        </div>
+
+        <textarea id="outputBox" placeholder="Encrypted messages, your address, or imported address data appear here."></textarea>
+      </section>
+
+      <section class="card panel keys-panel">
+        <div class="panel-header">
+          <h2>Local key material</h2>
+          <span>Public key is shareable. Encrypted private key is only for your backup.</span>
+        </div>
+
+        <div class="keys-grid">
+          <div>
+            <label>Public key</label>
+            <textarea id="publicKeyBox" readonly placeholder="Public key appears here..."></textarea>
+          </div>
+
+          <div>
+            <label>Encrypted private key</label>
+            <textarea id="privateKeyBox" readonly placeholder="Encrypted private key appears here..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section class="card panel decrypt-input-panel">
+        <div class="panel-header">
+          <h2>Paste SECUREMSG here</h2>
+        </div>
+
+        <textarea id="decryptInput" placeholder="Paste SECUREMSG:v1:... here"></textarea>
+      </section>
+
+      <section class="card panel decrypted-panel">
+        <div class="panel-header">
+          <h2>Decrypted message</h2>
+        </div>
+
+        <textarea id="decryptedOutput" placeholder="Decrypted message and signature status appear here."></textarea>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="identityDialog" class="modal">
+    <form method="dialog" class="modal-content">
+      <h2>Create/register my key</h2>
+
+      <label>
+        Name
+        <input id="identityName" type="text" placeholder="" />
+      </label>
+
+      <label>
+        Email address optional
+        <input id="identityEmail" type="email" placeholder="example@email.com" />
+      </label>
+
+      <label>
+        Private key password
+        <input id="identityPassword" type="password" />
+      </label>
+
+      <label>
+        Confirm private key password
+        <input id="identityPasswordConfirm" type="password" />
+      </label>
+
+      <div class="modal-actions">
+        <button value="cancel">Cancel</button>
+        <button id="confirmCreateIdentityBtn" value="default" class="primary">Create key</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="passwordDialog" class="modal">
+    <form method="dialog" class="modal-content">
+      <h2 id="passwordDialogTitle">Private key password</h2>
+
+      <label>
+        Password
+        <input id="runtimePassword" type="password" />
+      </label>
+
+      <div class="modal-actions">
+        <button value="cancel">Cancel</button>
+        <button id="confirmPasswordBtn" value="default" class="primary">Continue</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
