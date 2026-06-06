@@ -631,6 +631,8 @@ function handleShowMyAddress() {
 
 async function handleImportAddress() {
   try {
+    const identityBeforeImport = getPublicIdentity();
+
     let pasted = "";
 
     if (els.importAddressBox) pasted = els.importAddressBox.value.trim();
@@ -641,6 +643,12 @@ async function handleImportAddress() {
 
     const address = await parseAddressAsync(pasted);
 
+    if (identityBeforeImport && address.fingerprint === identityBeforeImport.fingerprint) {
+      throw new Error(
+        "This address is your own current public identity, so it does not need to be imported as another contact."
+      );
+    }
+
     const trust = confirm(
       "Address parsed successfully.\n\n" +
       "Only mark this contact as verified if you checked the fingerprint through another trusted channel.\n\n" +
@@ -650,19 +658,40 @@ async function handleImportAddress() {
     ) ? "verified" : "unverified";
 
     addContact({
-      ...address,
       type: "SECURECONTACT",
+      version: APP_VERSION,
+      app: APP_NAME,
+      name: address.name,
+      email: address.email || "",
+      fingerprint: address.fingerprint,
+      encryption_public_key: address.encryption_public_key,
+      signing_public_key: address.signing_public_key,
       trust,
       imported_at: nowIso()
     });
 
+    /*
+      Defensive guard:
+      Importing a public contact must never replace the user's own public identity.
+      If a future edit accidentally mutates identity storage, restore the pre-import identity.
+    */
+    const identityAfterImport = getPublicIdentity();
+
+    if (
+      identityBeforeImport &&
+      (!identityAfterImport || identityAfterImport.fingerprint !== identityBeforeImport.fingerprint)
+    ) {
+      setPublicIdentity(identityBeforeImport);
+    }
+
     refreshAll();
 
     alert(
-      `Address imported.\n\n` +
+      `Address imported as contact.\n\n` +
       `Name: ${address.name}\n` +
       `Fingerprint: ${address.fingerprint}\n` +
-      `Trust: ${trust}`
+      `Trust: ${trust}\n\n` +
+      `Your own identity was not changed.`
     );
   } catch (err) {
     alert(`Import error:\n\n${safeErrorMessage(err)}`);
@@ -1746,3 +1775,15 @@ function safeErrorMessage(err) {
 
   return err.message.slice(0, 1000);
 }
+
+
+function debugSecureMsgState() {
+  return {
+    publicIdentity: getPublicIdentity(),
+    addressBook: getAddressBook(),
+    privateKeyUnlocked: unlockedPrivateKeysExist(),
+    unlockedFingerprint: memoryState.unlockedFingerprint || null,
+    localStorageKeys: Object.keys(localStorage).filter((key) => key.startsWith("securemsg_"))
+  };
+}
+
