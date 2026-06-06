@@ -2,38 +2,58 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+
+
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'none'; upgrade-insecure-requests"
+  />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <title>Secure Message Encryptor</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <main class="app-shell">
     <section class="hero card">
       <div>
         <h1>Secure Message Encryptor</h1>
         <p>
-          Local browser encryption/signing app. Create an address, import other addresses,
-          encrypt messages, and verify signatures.
+          Local-only browser encryption app. Create an identity, export your encrypted private-key backup,
+          exchange public addresses, encrypt messages, and verify signatures.
         </p>
       </div>
 
-      <div id="statusBox" class="status-box">
+      <div id="statusBox" class="status-box" aria-live="polite">
         Loading status...
       </div>
     </section>
 
+    <section class="notice card">
+      <strong>Security model:</strong>
+      private keys are not stored in localStorage. You must export and safely keep the encrypted private-key backup file.
+      Use a clean browser profile with untrusted extensions disabled.
+    </section>
+
     <section class="controls card">
       <div class="control-grid">
-        <button id="createIdentityBtn">Create/register my key</button>
+        <button id="createIdentityBtn">Create identity</button>
         <button id="showAddressBtn">Show my address</button>
-        <button id="importAddressBtn">Import address from paste</button>
-        <button id="deleteAddressBtn">Delete selected address</button>
+        <button id="exportPrivateKeyBtn">Export private backup</button>
+        <button id="importPrivateKeyBtn">Import/unlock private backup</button>
+        <button id="lockPrivateKeyBtn">Lock private key</button>
+
+        <button id="importAddressBtn">Import address</button>
+        <button id="verifyContactBtn">Verify selected contact</button>
+        <button id="deleteAddressBtn" class="danger">Delete selected contact</button>
 
         <label for="recipientSelect">Encrypt to:</label>
-        <select id="recipientSelect"></select>
+        <select id="recipientSelect" aria-label="Recipient address"></select>
 
         <button id="refreshBtn">Refresh</button>
-        <button id="clearOutputBtn">Clear output</button>
+        <button id="clearOutputBtn">Clear outputs</button>
       </div>
     </section>
 
@@ -41,88 +61,184 @@
       <section class="card panel message-panel">
         <div class="panel-header">
           <h2>Message to encrypt</h2>
+          <button id="copyEncryptedBtn" class="small">Copy encrypted</button>
         </div>
 
-        <textarea id="messageInput" placeholder="Write normal text here..."></textarea>
+        <textarea
+          id="messageInput"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          placeholder="Write normal text here..."
+        ></textarea>
 
         <div class="button-row">
-          <button id="encryptBtn" class="primary">Encrypt only</button>
-          <button id="decryptTopBtn">Decrypt pasted message</button>
+          <button id="encryptBtn" class="primary">Encrypt and sign</button>
         </div>
       </section>
 
       <section class="card panel output-panel">
         <div class="panel-header">
-          <h2>Output / my address / imported address</h2>
+          <h2>Encrypted output / shared data</h2>
+          <button id="copyAddressBtn" class="small">Copy address</button>
         </div>
 
-        <textarea id="outputBox" placeholder="Encrypted messages, your address, or imported address data appear here."></textarea>
+        <textarea
+          id="outputBox"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          placeholder="Encrypted messages or your address appear here."
+        ></textarea>
       </section>
 
       <section class="card panel keys-panel">
         <div class="panel-header">
-          <h2>Local key material</h2>
-          <span>Public key is shareable. Encrypted private key is only for your backup.</span>
+          <h2>Public identity</h2>
+          <button id="copyPublicKeyBtn" class="small">Copy public keys</button>
         </div>
 
         <div class="keys-grid">
           <div>
-            <label>Public key</label>
-            <textarea id="publicKeyBox" readonly placeholder="Public key appears here..."></textarea>
+            <label for="publicKeyBox">Public key material</label>
+            <textarea id="publicKeyBox" readonly spellcheck="false" placeholder="Public keys appear here."></textarea>
           </div>
 
           <div>
-            <label>Encrypted private key</label>
-            <textarea id="privateKeyBox" readonly placeholder="Encrypted private key appears here..."></textarea>
+            <label for="privateKeyBox">Private key storage status</label>
+            <textarea id="privateKeyBox" readonly spellcheck="false"></textarea>
           </div>
         </div>
       </section>
 
-      <section class="card panel decrypt-input-panel">
+      <section class="card panel address-panel">
         <div class="panel-header">
-          <h2>Paste SECUREMSG here</h2>
+          <h2>My public address</h2>
         </div>
 
-        <textarea id="decryptInput" placeholder="Paste SECUREMSG:v1:... here"></textarea>
+        <textarea
+          id="myAddressBox"
+          readonly
+          spellcheck="false"
+          placeholder="Your SECUREADDR block appears here after creating an identity."
+        ></textarea>
+      </section>
+
+      <section class="card panel import-panel">
+        <div class="panel-header">
+          <h2>Import public address</h2>
+        </div>
+
+        <textarea
+          id="importAddressBox"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          placeholder="Paste someone else's SECUREADDR block here."
+        ></textarea>
+      </section>
+
+      <section class="card panel decrypt-input-panel">
+        <div class="panel-header">
+          <h2>Paste encrypted SECUREMSG</h2>
+        </div>
+
+        <textarea
+          id="decryptInput"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          placeholder="Paste SECUREMSG:v3:... here."
+        ></textarea>
+
+        <div class="button-row">
+          <button id="decryptBtn" class="primary">Decrypt and verify</button>
+          <button id="decryptTopBtn">Decrypt pasted message</button>
+        </div>
       </section>
 
       <section class="card panel decrypted-panel">
         <div class="panel-header">
           <h2>Decrypted message</h2>
+          <button id="copyDecryptedBtn" class="small">Copy decrypted</button>
         </div>
 
-        <textarea id="decryptedOutput" placeholder="Decrypted message and signature status appear here."></textarea>
+        <textarea
+          id="decryptedOutput"
+          readonly
+          spellcheck="false"
+          placeholder="Decrypted message and signature status appear here."
+        ></textarea>
       </section>
     </section>
   </main>
 
   <dialog id="identityDialog" class="modal">
     <form method="dialog" class="modal-content">
-      <h2>Create/register my key</h2>
+      <h2>Create identity</h2>
 
       <label>
         Name
-        <input id="identityName" type="text" placeholder="" />
+        <input
+          id="identityName"
+          type="text"
+          maxlength="80"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
       </label>
 
       <label>
-        Email address optional
-        <input id="identityEmail" type="email" placeholder="example@email.com" />
+        Email address, optional
+        <input
+          id="identityEmail"
+          type="email"
+          maxlength="254"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="example@email.com"
+        />
       </label>
 
       <label>
-        Private key password
-        <input id="identityPassword" type="password" />
+        Private backup password
+        <input
+          id="identityPassword"
+          type="password"
+          autocomplete="new-password"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
       </label>
 
       <label>
-        Confirm private key password
-        <input id="identityPasswordConfirm" type="password" />
+        Confirm private backup password
+        <input
+          id="identityPasswordConfirm"
+          type="password"
+          autocomplete="new-password"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
       </label>
+
+      <p class="small-text">
+        This password encrypts your private-key backup file. The app will download that file and will not store it in localStorage.
+      </p>
 
       <div class="modal-actions">
         <button value="cancel">Cancel</button>
-        <button id="confirmCreateIdentityBtn" value="default" class="primary">Create key</button>
+        <button id="confirmCreateIdentityBtn" value="default" class="primary">Create and download backup</button>
       </div>
     </form>
   </dialog>
@@ -133,7 +249,14 @@
 
       <label>
         Password
-        <input id="runtimePassword" type="password" />
+        <input
+          id="runtimePassword"
+          type="password"
+          autocomplete="current-password"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
       </label>
 
       <div class="modal-actions">
