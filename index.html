@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
 
-
+  <!--
+    This meta CSP is useful for static hosting where you cannot set HTTP headers.
+    Server-side CSP headers are still stronger/preferred.
+  -->
   <meta
     http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; connect-src 'none'; upgrade-insecure-requests"
@@ -54,6 +57,7 @@
 
         <button id="refreshBtn">Refresh</button>
         <button id="clearOutputBtn">Clear outputs</button>
+        <button id="clearLocalDataBtn" class="danger">Clear local public data</button>
       </div>
     </section>
 
