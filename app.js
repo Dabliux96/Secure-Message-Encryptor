@@ -38,6 +38,7 @@ const memoryState = {
 const els = {};
 
 document.addEventListener("DOMContentLoaded", () => {
+  cleanupLegacySensitiveStorage();
   bindElements();
   bindEvents();
   refreshAll();
@@ -68,6 +69,7 @@ function bindElements() {
   els.copyDecryptedBtn = byId("copyDecryptedBtn");
 
   els.clearOutputBtn = byId("clearOutputBtn");
+  els.clearLocalDataBtn = byId("clearLocalDataBtn");
 
   els.recipientSelect = byId("recipientSelect");
 
@@ -121,6 +123,7 @@ function bindEvents() {
 
   on(els.refreshBtn, "click", refreshAll);
   on(els.clearOutputBtn, "click", clearOutputs);
+  on(els.clearLocalDataBtn, "click", clearLocalPublicData);
 
   on(els.encryptBtn, "click", handleEncrypt);
   on(els.decryptTopBtn, "click", handleDecrypt);
@@ -161,6 +164,44 @@ function storageGetJson(key, fallback) {
 function storageSetJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
+
+function cleanupLegacySensitiveStorage() {
+  const legacyKeys = [
+    "securemsg_identity_v1",
+    "securemsg_identity_v2",
+    "securemsg_encrypted_private_bundle_v1",
+    "securemsg_encrypted_private_bundle_v2",
+    "securemsg_address_book_v1",
+    "securemsg_address_book_v2"
+  ];
+
+  for (const key of legacyKeys) {
+    localStorage.removeItem(key);
+  }
+}
+
+function clearLocalPublicData() {
+  const ok = confirm(
+    "This will delete the public identity and public address book stored in this browser.\n\n" +
+    "It will not delete any downloaded private backup files.\n\n" +
+    "After this, you will need to create a new identity or re-import public addresses.\n\n" +
+    "Continue?"
+  );
+
+  if (!ok) return;
+
+  lockPrivateKeys();
+
+  localStorage.removeItem(STORAGE_KEYS.publicIdentity);
+  localStorage.removeItem(STORAGE_KEYS.addressBook);
+
+  memoryState.identity = null;
+  memoryState.encryptedPrivateBackup = "";
+
+  clearOutputs();
+  refreshAll();
+}
+
 
 function getPublicIdentity() {
   return storageGetJson(STORAGE_KEYS.publicIdentity, null);
