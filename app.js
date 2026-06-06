@@ -19,6 +19,7 @@ const MAX_ADDRESS_CHARS = 30000;
 const MAX_MESSAGE_CHARS = 2_000_000;
 const MAX_PRIVATE_BACKUP_CHARS = 500000;
 const MAX_PLAINTEXT_CHARS = 500000;
+const PRIVATE_KEY_UNLOCK_MS = 10 * 60 * 1000;
 
 const FINGERPRINT_RE = /^[a-f0-9]{64}$/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -32,7 +33,8 @@ const memoryState = {
   encryptionPrivateKey: null,
   signingPrivateKey: null,
   unlockedFingerprint: "",
-  unlockedAt: 0
+  unlockedAt: 0,
+  lockTimerId: null
 };
 
 const els = {};
@@ -41,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   cleanupLegacySensitiveStorage();
   bindElements();
   bindEvents();
+  bindSecurityLifecycleEvents();
   refreshAll();
 });
 
@@ -133,6 +136,18 @@ function bindEvents() {
   on(els.copyAddressBtn, "click", () => copyText(getMyAddressText(), "address"));
   on(els.copyEncryptedBtn, "click", () => copyText(getEncryptedOutputText(), "encrypted message"));
   on(els.copyDecryptedBtn, "click", () => copyText(els.decryptedOutput?.value || "", "decrypted message"));
+}
+
+function bindSecurityLifecycleEvents() {
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && unlockedPrivateKeysExist()) {
+      lockPrivateKeys();
+    }
+  });
+
+  window.addEventListener("pagehide", () => {
+    lockPrivateKeys();
+  });
 }
 
 /* Browser and storage */
@@ -259,7 +274,7 @@ function refreshStatus() {
     : "missing";
 
   const unlockStatus = unlockedPrivateKeysExist()
-    ? `unlocked in memory | ${new Date(memoryState.unlockedAt).toLocaleString()}`
+    ? `unlocked in memory | auto-lock within 10 minutes | ${new Date(memoryState.unlockedAt).toLocaleString()}`
     : "locked or not imported";
 
   els.statusBox.textContent =
@@ -436,16 +451,16 @@ async function handleCreateIdentity(event) {
       app: APP_NAME,
       fingerprint,
       created_at: identity.created_at,
+      public_identity: identity,
       encryption_private_pkcs8: arrayBufferToB64(encryptionPrivatePkcs8),
       signing_private_pkcs8: arrayBufferToB64(signingPrivatePkcs8)
     };
 
     const encryptedBackup = await encryptPrivateBundle(privateBundle, passwordPair.password);
-    await unlockPrivateKeysFromBundle(privateBundle, identity);
 
     setPublicIdentity(identity);
     memoryState.identity = identity;
-    memoryState.encryptedPrivateBackup = encryptedBackup;
+    memoryState.encryptedPrivateBackup = "";
 
     addContact(buildContactFromIdentity(identity, "verified"));
 
@@ -457,7 +472,8 @@ async function handleCreateIdentity(event) {
     alert(
       "Identity created.\n\n" +
       "An encrypted private-key backup was downloaded.\n\n" +
-      "Store it safely. Without it, you cannot decrypt old messages after closing/reloading the page.\n\n" +
+      "Store it safely. The app does not keep a copy in localStorage or long-term browser memory.\n\n" +
+      "To sign or decrypt later, import this backup file and enter its password.\n\n" +
       `Fingerprint:\n${fingerprint}`
     );
   } catch (err) {
@@ -473,8 +489,8 @@ async function handleExportEncryptedPrivateBackup() {
 
     if (!memoryState.encryptedPrivateBackup) {
       throw new Error(
-        "No encrypted private backup is currently loaded in memory.\n\n" +
-        "This app does not store private key material in localStorage.\n\n" +
+        "No encrypted private backup is currently retained in memory.\n\n" +
+        "This is intentional: the app clears private backup text after creation/import.\n\n" +
         "Use the backup file you downloaded when creating the identity."
       );
     }
@@ -489,16 +505,36 @@ async function handleImportEncryptedPrivateBackup() {
   try {
     ensureWebCrypto();
 
-    const backupText = await chooseTextFile(".txt,.securemsg,text/plain");
+    let backupText = await chooseTextFile(".txt,.securemsg,text/plain");
     assertMaxLength(backupText, MAX_PRIVATE_BACKUP_CHARS, "Private key backup");
 
     const password = await askRuntimePassword("Private key backup password");
-    const privateBundle = await decryptPrivateBundle(backupText, password);
+    let privateBundle = await decryptPrivateBundle(backupText, password);
 
-    const identity = getPublicIdentity();
+    let identity = getPublicIdentity();
+
+    /*
+      New backups include public_identity inside the encrypted private backup.
+      This lets a fresh browser/profile restore the public identity automatically.
+    */
+    if (!identity && privateBundle.public_identity) {
+      validatePublicIdentity(privateBundle.public_identity);
+
+      if (privateBundle.public_identity.fingerprint !== privateBundle.fingerprint) {
+        throw new Error("Private backup public identity fingerprint does not match the private backup.");
+      }
+
+      setPublicIdentity(privateBundle.public_identity);
+      addContact(buildContactFromIdentity(privateBundle.public_identity, "verified"));
+      identity = privateBundle.public_identity;
+    }
 
     if (!identity) {
-      throw new Error("Create or import the matching public identity/address first.");
+      throw new Error(
+        "No public identity exists in this browser, and this backup does not contain one.\n\n" +
+        "This usually means the backup was created with an older version of the app.\n\n" +
+        "To use this older backup in a fresh browser, first import the matching public identity/address."
+      );
     }
 
     if (privateBundle.fingerprint !== identity.fingerprint) {
@@ -511,10 +547,19 @@ async function handleImportEncryptedPrivateBackup() {
 
     await unlockPrivateKeysFromBundle(privateBundle, identity);
 
-    memoryState.encryptedPrivateBackup = backupText;
+    /*
+      Do not keep the encrypted backup text or decrypted private bundle around.
+      User must select the backup file again after lock/reload.
+    */
+    backupText = "";
+    privateBundle = null;
+    memoryState.encryptedPrivateBackup = "";
+
+    schedulePrivateKeyAutoLock();
+
     refreshAll();
 
-    alert("Private key backup imported and unlocked in memory.");
+    alert("Private key backup imported, identity restored if needed, and private keys unlocked for 10 minutes.");
   } catch (err) {
     alert(`Private key import error:\n\n${safeErrorMessage(err)}`);
   }
@@ -555,17 +600,36 @@ async function unlockPrivateKeysFromBundle(privateBundle, identity) {
   memoryState.signingPrivateKey = signingPrivateKey;
   memoryState.unlockedFingerprint = identity.fingerprint;
   memoryState.unlockedAt = Date.now();
+
+  schedulePrivateKeyAutoLock();
 }
 
 function lockPrivateKeys() {
+  if (memoryState.lockTimerId) {
+    clearTimeout(memoryState.lockTimerId);
+    memoryState.lockTimerId = null;
+  }
+
   memoryState.encryptionPrivateKey = null;
   memoryState.signingPrivateKey = null;
   memoryState.unlockedFingerprint = "";
   memoryState.unlockedAt = 0;
+  memoryState.encryptedPrivateBackup = "";
 
   if (els.decryptedOutput) els.decryptedOutput.value = "";
 
   refreshAll();
+}
+
+function schedulePrivateKeyAutoLock() {
+  if (memoryState.lockTimerId) {
+    clearTimeout(memoryState.lockTimerId);
+  }
+
+  memoryState.lockTimerId = setTimeout(() => {
+    lockPrivateKeys();
+    alert("Private key auto-locked after 10 minutes.");
+  }, PRIVATE_KEY_UNLOCK_MS);
 }
 
 /* Addresses */
@@ -893,25 +957,14 @@ async function handleDecrypt() {
 async function unlockPrivateKeysFromPrompt() {
   if (unlockedPrivateKeysExist()) return;
 
-  if (!memoryState.encryptedPrivateBackup) {
-    const ok = confirm(
-      "Your private key is not unlocked in memory.\n\n" +
-      "Import your encrypted private-key backup file now?"
-    );
+  const ok = confirm(
+    "Your private key is not unlocked in memory.\n\n" +
+    "Import your encrypted private-key backup file now?"
+  );
 
-    if (!ok) throw new Error("Private key is locked.");
+  if (!ok) throw new Error("Private key is locked.");
 
-    await handleImportEncryptedPrivateBackup();
-    return;
-  }
-
-  const password = await askRuntimePassword("Private key password");
-  const privateBundle = await decryptPrivateBundle(memoryState.encryptedPrivateBackup, password);
-  const identity = getPublicIdentity();
-
-  if (!identity) throw new Error("No public identity exists.");
-
-  await unlockPrivateKeysFromBundle(privateBundle, identity);
+  await handleImportEncryptedPrivateBackup();
 }
 
 async function encryptAndSignMessage(plaintext, recipient) {
@@ -1330,6 +1383,14 @@ function validatePlainPrivateBundle(bundle) {
   if (bundle.app !== APP_NAME) throw new Error("Invalid private bundle app.");
 
   assertFingerprint(bundle.fingerprint, "Private bundle fingerprint");
+
+  if (bundle.public_identity !== undefined) {
+    validatePublicIdentity(bundle.public_identity);
+
+    if (bundle.public_identity.fingerprint !== bundle.fingerprint) {
+      throw new Error("Private bundle public identity fingerprint mismatch.");
+    }
+  }
 
   if (typeof bundle.encryption_private_pkcs8 !== "string") {
     throw new Error("Missing encryption private key.");
@@ -1786,4 +1847,3 @@ function debugSecureMsgState() {
     localStorageKeys: Object.keys(localStorage).filter((key) => key.startsWith("securemsg_"))
   };
 }
-
