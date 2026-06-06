@@ -95,27 +95,17 @@ textarea {
 }
 
 .control-grid {
-  display: grid;
-  grid-template-columns: repeat(5, max-content);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-}
-
-.control-grid label {
-  grid-column: 1 / 2;
-}
-
-.control-grid select {
-  grid-column: 2 / 5;
-  min-width: 280px;
 }
 
 .main-grid {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(340px, 1.15fr);
-  grid-template-rows: minmax(220px, 1.1fr) minmax(300px, 1.4fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
@@ -125,41 +115,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.message-panel {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-}
-
-.output-panel {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-}
-
-.keys-panel {
-  grid-column: 1 / 3;
-  grid-row: 2 / 3;
-}
-
-.address-panel {
-  grid-column: 1 / 2;
-  grid-row: 3 / 4;
-}
-
-.import-panel {
-  grid-column: 2 / 3;
-  grid-row: 3 / 4;
-}
-
-.decrypt-input-panel {
-  grid-column: 1 / 2;
-  grid-row: 4 / 5;
-}
-
-.decrypted-panel {
-  grid-column: 2 / 3;
-  grid-row: 4 / 5;
 }
 
 .panel-header {
@@ -175,20 +130,127 @@ textarea {
   font-size: 15px;
 }
 
+h3 {
+  margin: 0;
+  color: var(--strong);
+  font-size: 16px;
+}
+
+/* Identity and Addresses */
+
+.identity-addresses-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 0.5fr 2fr 2fr;
+  gap: 12px;
+  align-items: stretch;
+  align-content: start;
+}
+
+.identity-addresses-panel > h3 {
+  grid-column: 1 / -1;
+}
+
+.keys-panel {
+  grid-column: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 230px;
+}
+
+.address-panel {
+  grid-column: 2 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 230px;
+}
+
+.import-panel {
+  grid-column: 3 / 4;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 230px;
+}
+
+.identity-button-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.identity-button-grid button {
+  width: 100%;
+}
+
 .keys-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
 }
 
 .keys-grid > div {
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  min-height: 0;
 }
+
+#publicKeyBox {
+  min-height: 120px;
+  height: 100%;
+}
+
+/* Encryption and Decryption */
+
+.encrypt-decrypt-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: stretch;
+  align-content: start;
+}
+
+.crypto-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(2, 6, 23, 0.08);
+}
+
+.crypto-group > h2 {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 15px;
+  color: var(--strong);
+}
+
+.message-panel,
+.output-panel,
+.decrypt-input-panel,
+.decrypted-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 170px;
+}
+
+.message-panel textarea,
+.output-panel textarea,
+.decrypt-input-panel textarea,
+.decrypted-panel textarea {
+  min-height: 80px;
+}
+
+/* Form elements */
 
 label {
   color: var(--text);
@@ -200,6 +262,7 @@ textarea,
 input,
 select {
   width: 100%;
+  flex: 1;
   background: var(--input);
   color: var(--text);
   border: 1px solid var(--border);
@@ -208,7 +271,6 @@ select {
 }
 
 textarea {
-  flex: 1;
   min-height: 0;
   padding: 10px;
   resize: vertical;
@@ -219,7 +281,7 @@ textarea {
 
 input,
 select {
-  padding: 9px 10px;
+  padding: 9px 12px;
 }
 
 textarea:focus,
@@ -229,13 +291,15 @@ select:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
+/* Buttons */
+
 button {
   background: var(--card-2);
   color: var(--strong);
   border: 1px solid #475569;
   border-radius: 10px;
-  padding: 9px 14px;
-  font-weight: 700;
+  padding: 6px 10px;
+  font-weight: 600;
   cursor: pointer;
   transition: 0.12s ease-in-out;
   white-space: nowrap;
@@ -274,9 +338,19 @@ button.small {
 
 .button-row {
   display: flex;
+  align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
+
+.button-row label {
+  white-space: nowrap;
+}
+
+.button-row select {
+  max-width: 420px;
+}
+
+/* Modal */
 
 .modal {
   border: 1px solid var(--border);
@@ -323,34 +397,32 @@ button.small {
   margin: 0;
 }
 
+/* Responsive */
+
 @media (max-width: 1100px) {
-  .control-grid {
+  .identity-addresses-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .keys-panel,
+  .address-panel,
+  .import-panel {
+    grid-column: 1 / -1;
+  }
+
+  .identity-button-grid {
     grid-template-columns: 1fr 1fr;
   }
 
-  .control-grid label,
-  .control-grid select {
-    grid-column: auto;
-  }
-
-  .main-grid {
+  .crypto-group {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(7, minmax(220px, auto));
   }
 
   .message-panel,
   .output-panel,
-  .keys-panel,
-  .address-panel,
-  .import-panel,
   .decrypt-input-panel,
   .decrypted-panel {
-    grid-column: 1 / 2;
-    grid-row: auto;
-  }
-
-  .keys-grid {
-    grid-template-columns: 1fr;
+    grid-column: 1 / -1;
   }
 
   .hero {
@@ -364,15 +436,25 @@ button.small {
   }
 
   .control-grid {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .control-grid select {
-    min-width: 0;
+  .identity-button-grid {
+    grid-template-columns: 1fr;
   }
 
   .panel-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .button-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .button-row select {
+    max-width: none;
   }
 }
